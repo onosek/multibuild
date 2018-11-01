@@ -3,7 +3,7 @@
 
 # PYTHON_ARGCOMPLETE_OK
 
-from multibuild.__main__ import main
+from multibuild.__init__ import main
 
 if __name__ == "__main__":
     main()

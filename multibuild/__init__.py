@@ -1,4 +1,5 @@
-#!/usr/bin/python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 # TODO: import argcomplete
 import argparse
@@ -12,7 +13,7 @@ import time
 
 import koji
 
-CONFIG_FILE = "~/.multibuild.conf"
+CONFIG_FILE = "/etc/multibuild/multibuild.conf"
 BUILD_ID_URL_TEMPLATE = "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=%d"
 DIM = '\033[2m'
 RESET = '\033[0m'
@@ -243,6 +244,8 @@ def get_branches(args, config, logger):
         try:
             raw_branches = config.get("branches", "active_branches")
             branches = tuple(branch.strip() for branch in raw_branches.split(","))
+            if branches:
+                logger.info("Using branches from a config file")
         except (configparser.NoOptionError, configparser.NoSectionError) as e:
             pass
     if not branches:
@@ -263,7 +266,7 @@ class ColorFormatter(logging.Formatter):
         return '%s%s%s' % (color, record.message, RESET)
 
 
-def main(argv):
+def main():
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger("main")
 
@@ -339,6 +342,8 @@ def main(argv):
         print("Available builds summary:")
         print('\n'.join(log_buff.get_output("summary")))
 
+    return
+
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main())
