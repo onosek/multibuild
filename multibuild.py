@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+# TODO: import argcomplete
 import argparse
 import configparser
 import logging
@@ -11,14 +12,17 @@ import time
 
 import koji
 
+CONFIG_FILE = "~/.multibuild.conf"
 BUILD_ID_URL_TEMPLATE = "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=%d"
+DIM = '\033[2m'
+RESET = '\033[0m'
 
 # ===============================
 # improvements to be implemented
 # -------------------------------
 # in log messages include thread name
-# read branches from config file
 # read custom verrel format for specific projects
+# add command "download" packages from brew (no src packages)
 # ...
 
 
@@ -95,14 +99,15 @@ class BuildThread(threading.Thread):
         self.log_buff = log_buff
 
     def run(self):
-        print("Starting thread '{}'".format(self.name))
+        logger = logging.getLogger("run")
+        logger.info("Starting thread '{}'".format(self.name))
         if self.mode == "tag":
             self.run_tag()
         elif self.mode == "summary":
             self.run_summary()
         else:
             self.run_standard()
-        print("Exiting thread '{}'".format(self.name))
+        logger.info("Exiting thread '{}'".format(self.name))
 
     def checkout(func):
         """
@@ -110,7 +115,7 @@ class BuildThread(threading.Thread):
         and if sucessfull, it continues in decorated function
         """
         def run_checkout(self):
-            out, err, ret = execute_command(self.name, "git checkout {}".format(self.name))
+            out, err, ret = execute_command(self.name, ["git checkout {}".format(self.name)])
             self.log_buff.append_output(self.name, out)
             self.log_buff.append_error(self.name, err)
             if ret == 0:
@@ -144,7 +149,7 @@ class BuildThread(threading.Thread):
         Fist checkout into target dist-git branch then execute command
         """
         logger = logging.getLogger("run_standard")
-        logger.info("Executing: '{}'".format(self.command))
+        logger.debug("'{}'".format(self.command))
         out, err, __ = execute_command(self.name, self.command)
         self.log_buff.append_output(self.name, out)
         self.log_buff.append_error(self.name, err)
@@ -169,8 +174,8 @@ class BuildThread(threading.Thread):
             if koji_result and koji_result.get("nvr", "") == verrel:
                 # tag the build
                 command = "brew tag-build {} {}".format(self.name, verrel)
-                logger.info("Executing: '{}'".format(command))
-                out, err, __ = execute_command(self.name)
+                logger.debug("'{}'".format(self.command))
+                out, err, __ = execute_command(self.name, [command])
                 self.log_buff.append_output(self.name, out)
                 self.log_buff.append_error(self.name, err)
             else:
@@ -227,12 +232,43 @@ def execute_command(name, command=""):
     return (out, err, proc.returncode)
 
 
+def get_branches(args, config, logger):
+    """
+    use branches from command-line arguments or load them from config
+    """
+    branches = []
+    if args.branches:
+        return args.branches
+    else:
+        try:
+            raw_branches = config.get("branches", "active_branches")
+            branches = tuple(branch.strip() for branch in raw_branches.split(","))
+        except (configparser.NoOptionError, configparser.NoSectionError) as e:
+            pass
+    if not branches:
+        logger.warning("There are neither branches arguments nor branches in config")
+
+    return branches
+
+
+class ColorFormatter(logging.Formatter):
+
+    def format(self, record):
+        super().format(record)
+        color = {
+            logging.INFO: '\033[92m',
+            logging.WARNING: '\033[93m',
+            logging.ERROR: '\033[91m',
+        }.get(record.levelno, '')
+        return '%s%s%s' % (color, record.message, RESET)
+
+
 def main(argv):
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     logger = logging.getLogger("main")
 
     parser = argparse.ArgumentParser(description='Apply specific action for each dist-git branch in list')
-    parser.add_argument('branches', metavar='BRANCH', type=str, nargs='+',
+    parser.add_argument('branches', metavar='BRANCH', type=str, nargs='*',
                         help='list of dist-git branches')
     parser.add_argument('-c', '--config', dest='config_file', metavar="CONFIG_FILE", action='store',
                         help='specifies config file (INI format)')
@@ -248,19 +284,22 @@ def main(argv):
     command_group.add_argument('-e', '--execute', dest='execute_custom', metavar="COMMAND", action='store',
                                help='executes custom command')
 
+    # TODO: argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
-    if args.config_file:
-        files = config.read(args.config_file)
+    config_file = args.config_file if args.config_file else CONFIG_FILE
+    if os.path.isfile(config_file):
+        logger.debug("Will use a config file: {}".format(config_file))
+        files = config.read(config_file)
         if not files:
-            logger.warning("Config file '%s' is missing." % args.config_file)
-    # TODO: read data from config | check whether at leas one branch is given
+            logger.warning("Config file '%s' is missing." % config_file)
 
     log_buff = LogBuffer()
 
+    branches = get_branches(args, config, logger)
     threads = []
-    for i, branch in enumerate(args.branches):
+    for i, branch in enumerate(branches):
         # create new thread
         if args.do_build:
             command = ["rhpkg build"]
@@ -284,20 +323,18 @@ def main(argv):
         time.sleep(1)
 
     # wait for all threads to complete
+    time.sleep(1)
+    logging.info("waiting ... threads are working")
     for thread in threads:
         thread.join()
-
     logging.info("threads finished")
 
-    for name in args.branches:
-        print("==== %s =====" % name)
+    for name in branches:
+        print("========== %s ==========" % name)
+        print(DIM, end='', flush=True)
         print("err: " + ''.join(log_buff.get_errors(name)))
-        # for line in buff["err"]:
-        #    print(line.strip())
         print("out: " + ''.join(log_buff.get_output(name)))
-        # for line in buff["out"]:
-        #    print(line.strip())
-        print("=================")
+        print(RESET, end='', flush=True)
     if log_buff.get_output("summary"):
         print("Available builds summary:")
         print('\n'.join(log_buff.get_output("summary")))
