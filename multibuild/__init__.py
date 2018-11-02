@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+from textwrap import dedent
 
 import koji
 
@@ -210,7 +211,9 @@ class BuildThread(threading.Thread):
                     build_id_url = build_id_url_template % koji_result.get("build_id")
                     stream = "[{verrel}|{url}]".format(verrel=verrel, url=build_id_url)
                     # common output for all threads
-                    self.log_buff.append_output("summary", stream)
+                    self.log_buff.append_output("_summary", stream)
+                    self.log_buff.append_output("_builds", verrel)
+                    self.log_buff.append_output("_tags", self.name)
             else:
                 logger.error("build_id wasn't found for '{}'".format(verrel))
 
@@ -278,6 +281,8 @@ def main():
     command_group = parser.add_mutually_exclusive_group(required=True)
     command_group.add_argument('-p', '--print-summary', dest='do_summary', action='store_true',
                                help='prints the summary')
+    command_group.add_argument('-j', '--print-jira', dest='do_jira', action='store_true',
+                               help='prints the JIRA template')
     command_group.add_argument('-b', '--build', dest='do_build', action='store_true',
                                help='builds from branches')
     command_group.add_argument('-s', '--scratch-build', dest='do_scratch_build', action='store_true',
@@ -315,7 +320,7 @@ def main():
             thread = BuildThread(config, log_buff, i, branch, command=command)
         elif args.do_tag:
             thread = BuildThread(config, log_buff, i, branch, mode="tag")
-        elif args.do_summary:
+        elif args.do_summary or args.do_jira:
             thread = BuildThread(config, log_buff, i, branch, mode="summary")
 
         threads.append(thread)
@@ -323,7 +328,8 @@ def main():
         # start new thread
         thread.start()
         # delay for safe checkout
-        time.sleep(1)
+        # TODO: it is also workaround for `verrel`. It needs some time to get correct result after switching branch
+        time.sleep(3)
 
     # wait for all threads to complete
     time.sleep(1)
@@ -338,9 +344,30 @@ def main():
         print("err: " + ''.join(log_buff.get_errors(name)))
         print("out: " + ''.join(log_buff.get_output(name)))
         print(RESET, end='', flush=True)
-    if log_buff.get_output("summary"):
-        print("Available builds summary:")
-        print('\n'.join(log_buff.get_output("summary")))
+    if log_buff.get_output("_summary"):
+        summary = '\n'.join(log_buff.get_output("_summary"))
+        if args.do_jira:
+            builds = '\n'.join(["* {}".format(build) for build in log_buff.get_output("_builds")])
+            tags = ', '.join(log_buff.get_output("_tags"))
+            print("JIRA template:")
+            jira_template = (dedent("""
+                             Project: RCM
+                             Component: RCM Tools.
+                             Title: Rerun compose with new RHEL and Fedora packages
+                             The ticket description:
+                             Please include these packages in the compose:
+
+                             {builds}
+
+                             Links:
+                             {summary}
+
+                             The packages are already tagged in respective *{tags}* tags.
+            """))
+            print(jira_template.format(builds=builds, summary=summary, tags=tags))
+        else:
+            print("Available builds summary:")
+            print(summary)
 
     return
 
