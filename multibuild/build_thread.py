@@ -97,9 +97,13 @@ class BuildThread(threading.Thread):
                 # tag the build
                 command = "brew tag-build {} {}".format(self.name, verrel)
                 logger.debug("'{}'".format(self.command))
-                out, err, __ = execute_command(self.name, [command])
+                out, err, ret = execute_command(self.name, [command])
                 self.log_buff.append_output(self.name, out)
                 self.log_buff.append_error(self.name, err)
+                if not ret:
+                    waitrepo_cmd = "brew wait-repo {}-build --build={}".format(self.name, verrel)
+                    message = "\nYou can wait for repo regeneration by executing command:\n  {}".format(waitrepo_cmd)
+                    self.log_buff.append_output(self.name, message)
             else:
                 logger.error("koji nvr '{}' do not match with rhpkg verrel '{}'".format(koji_result.get("nvr", ""), verrel))
 
