@@ -25,6 +25,7 @@ RESET = '\033[0m'
 # in log messages include thread name
 # read custom verrel format for specific projects
 # add command "download" packages from brew (no src packages)
+# verify whether builds are tagged when printing the RCM ticket template
 # ...
 
 
@@ -218,21 +219,48 @@ class BuildThread(threading.Thread):
                 logger.error("build_id wasn't found for '{}'".format(verrel))
 
 
-def execute_command(name, command=""):
+def execute_command(name, command="", pipe=None):
     logger = logging.getLogger("execute_command")
-    logger.info("'{}'".format(command))
-    proc = subprocess.Popen(
-        command,
-        shell=True,
-        cwd=None,
-        stdin=None,
-        universal_newlines=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+    # compose command string for logging purpose
+    if pipe:
+        command_str = "{} | {}".format(command, pipe)
+    else:
+        command_str = command
+    logger.info("'{}'".format(command_str))
+
+    if pipe:
+        parent_proc = subprocess.Popen(
+            command,
+            shell=True,
+            cwd=None,
+            stdin=None,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        proc = subprocess.Popen(
+            pipe,
+            shell=True,
+            cwd=None,
+            stdin=parent_proc.stdout,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        parent_proc.stdout.close()
+    else:
+        proc = subprocess.Popen(
+            command,
+            shell=True,
+            cwd=None,
+            stdin=None,
+            universal_newlines=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
     out, err = proc.communicate()
     if proc.returncode != 0:
-        logger.error("During execution: '{}' in thread '{}'".format(command, name))
+        logger.error("During execution: '{}' in thread '{}'".format(command_str, name))
     return (out, err, proc.returncode)
 
 
@@ -257,22 +285,7 @@ def get_branches(args, config, logger):
     return branches
 
 
-class ColorFormatter(logging.Formatter):
-
-    def format(self, record):
-        super().format(record)
-        color = {
-            logging.INFO: '\033[92m',
-            logging.WARNING: '\033[93m',
-            logging.ERROR: '\033[91m',
-        }.get(record.levelno, '')
-        return '%s%s%s' % (color, record.message, RESET)
-
-
-def main():
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    logger = logging.getLogger("main")
-
+def prepare_parser():
     parser = argparse.ArgumentParser(description='Apply specific action for each dist-git branch in list')
     parser.add_argument('branches', metavar='BRANCH', type=str, nargs='*',
                         help='list of dist-git branches')
@@ -291,20 +304,12 @@ def main():
                                help='tags builds')
     command_group.add_argument('-e', '--execute', dest='execute_custom', metavar="COMMAND", action='store',
                                help='executes custom command')
+    command_group.add_argument('-l', '--gather-logs', dest='task_id', metavar="TASK_ID", action='store',
+                               help='gather build logs and store them locally', type=int)
+    return parser
 
-    # TODO: argcomplete.autocomplete(parser)
-    args = parser.parse_args()
 
-    config = configparser.ConfigParser()
-    config_file = args.config_file if args.config_file else CONFIG_FILE
-    if os.path.isfile(config_file):
-        logger.debug("Will use a config file: {}".format(config_file))
-        files = config.read(config_file)
-        if not files:
-            logger.warning("Config file '%s' is missing." % config_file)
-
-    log_buff = LogBuffer()
-
+def execute_thread_approach(args, config, logger, log_buff):
     branches = get_branches(args, config, logger)
     threads = []
     for i, branch in enumerate(branches):
@@ -368,6 +373,65 @@ def main():
         else:
             print("Available builds summary:")
             print(summary)
+
+
+def execute_simple_approach(args, config, logger, log_buff):
+    # so far there is only one functionality - gathering logs
+    out, __, __ = execute_command(
+        "get_subtask",
+        ["brew call --json getTaskChildren {}".format(args.task_id)],
+        ["jq '.[] | select(.method==\"buildArch\") | .id'"]
+    )
+    task_id = out if out else args.task_id
+    try:
+        int(task_id)
+    except ValueError:
+        logger.error("Task_id is not valid: {}".format(task_id))
+        return
+    out, err, ret = execute_command("gather_logs", "brew download-logs {}".format(task_id))
+    if ret:
+        logger.error("During gathering or saving logs")
+    else:
+        logger.info("Logs were gathered and saved:")
+    if err:
+        logger.error(err)
+    print(out)
+
+
+class ColorFormatter(logging.Formatter):
+
+    def format(self, record):
+        super().format(record)
+        color = {
+            logging.INFO: '\033[92m',
+            logging.WARNING: '\033[93m',
+            logging.ERROR: '\033[91m',
+        }.get(record.levelno, '')
+        return '%s%s%s' % (color, record.message, RESET)
+
+
+def main():
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logger = logging.getLogger("main")
+
+    parser = prepare_parser()
+    # TODO: argcomplete.autocomplete(parser)
+    args = parser.parse_args()
+
+    config = configparser.ConfigParser()
+    config_file = args.config_file if args.config_file else CONFIG_FILE
+    if os.path.isfile(config_file):
+        logger.debug("Will use a config file: {}".format(config_file))
+        files = config.read(config_file)
+        if not files:
+            logger.warning("Config file '%s' is missing." % config_file)
+
+    log_buff = LogBuffer()
+
+    if args.task_id:
+        execute_simple_approach(args, config, logger, log_buff)
+    else:
+        execute_thread_approach(args, config, logger, log_buff)
 
     return
 

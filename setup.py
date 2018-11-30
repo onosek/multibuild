@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='multibuild',
-    version='0.1.0',
+    version='0.2.0',
     description='speed up operations during release process',
     author='Ondřej Nosek',
     author_email='onosek@redhat.com',
@@ -15,7 +15,14 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Programming Language :: Python :: 3 :: Only",
     ],
-    install_requires=[],
+    install_requires=[
+        # "python3-koji",
+        # "git",
+        # "rhpkg",
+        # "brewkoji",
+        # "jq",
+    ],
+    python_requires='>=3',
     test_suite='nose.collector',
     packages=find_packages(),
     scripts=['bin/multibuild'],
