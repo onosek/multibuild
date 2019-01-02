@@ -71,6 +71,8 @@ def prepare_parser():
                                help='executes custom command')
     command_group.add_argument('-l', '--gather-logs', dest='task_id', metavar="TASK_ID", action='store',
                                help='gather build logs and store them locally', type=int)
+    command_group.add_argument('-w', '--wait-repo', dest='wait_repo', action='store_true',
+                               help='will wait for repo regeneration')
     return parser
 
 
@@ -92,6 +94,8 @@ def execute_thread_approach(args, config, logger, log_buff):
             thread = BuildThread(config, log_buff, i, branch, mode="tag")
         elif args.do_summary or args.do_jira:
             thread = BuildThread(config, log_buff, i, branch, mode="summary")
+        elif args.wait_repo:
+            thread = BuildThread(config, log_buff, i, branch, mode="wait-repo")
 
         threads.append(thread)
 

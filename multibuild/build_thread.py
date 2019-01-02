@@ -27,6 +27,8 @@ class BuildThread(threading.Thread):
             self.run_tag()
         elif self.mode == "summary":
             self.run_summary()
+        elif self.mode == "wait-repo":
+            self.wait_repo()
         else:
             self.run_standard()
         logger.info("Exiting thread '{}'".format(self.name))
@@ -101,11 +103,15 @@ class BuildThread(threading.Thread):
                 self.log_buff.append_output(self.name, out)
                 self.log_buff.append_error(self.name, err)
                 if not ret:
-                    waitrepo_cmd = "brew wait-repo {}-build --build={}".format(self.name, verrel)
-                    message = "\nYou can wait for repo regeneration by executing command:\n  {}".format(waitrepo_cmd)
+                    waitrepo_cmd = "brew wait-repo {branch}-build --build={nvr}"
+                    waitrepo_cmd = waitrepo_cmd.format(branch=self.name, nvr=verrel)
+                    message = "\nYou can wait for repo regeneration by executing command:\n  {}"
+                    message = message.format(waitrepo_cmd)
                     self.log_buff.append_output(self.name, message)
             else:
-                logger.error("koji nvr '{}' do not match with rhpkg verrel '{}'".format(koji_result.get("nvr", ""), verrel))
+                message = "koji nvr '{}' do not match with rhpkg verrel '{}'"
+                message = message.format(koji_result.get("nvr", ""), verrel)
+                logger.error(message)
 
     @checkout
     def run_summary(self):
@@ -140,3 +146,20 @@ class BuildThread(threading.Thread):
                     self.log_buff.append_output("_tags", self.name)
             else:
                 logger.error("build_id wasn't found for '{}'".format(verrel))
+
+    @checkout
+    def wait_repo(self):
+        """
+        Wait for regeneration of the repository with latest build
+        Warning: method is not checking whether build is already tagged
+        """
+        logger = logging.getLogger("wait-repo")
+
+        verrel = self.local_nvr()
+        if verrel:
+            command = "brew wait-repo --build={verrel} {name}-build".format(verrel=verrel, name=self.name)
+            logger.debug("'{}'".format(command))
+            logger.warning("Method is not checking whether build is already tagged")  # FIXME
+            out, err, __ = execute_command(self.name, command)
+            self.log_buff.append_output(self.name, out)
+            self.log_buff.append_error(self.name, err)
