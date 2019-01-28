@@ -5,7 +5,7 @@ import logging
 import threading
 
 from . kojiwrapper import Kojiwrapper
-from . tools import execute_command
+from . tools import detect_distribution, execute_command, get_distribution_tool
 
 BUILD_ID_URL_TEMPLATE = "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=%d"
 
@@ -19,6 +19,9 @@ class BuildThread(threading.Thread):
         self.command = command
         self.mode = mode
         self.log_buff = log_buff
+
+        self.distribution = detect_distribution(self.name)
+        self.distribution_tool = get_distribution_tool(self.distribution)
 
     def run(self):
         logger = logging.getLogger("run")
@@ -48,7 +51,7 @@ class BuildThread(threading.Thread):
 
     def local_nvr(self):
         """
-        load nvr from config data (depends on project) or by rhpkg command
+        load nvr from config data (depends on project) or by rhpkg/fedpkg command
         """
         nvr_format = None
         try:
@@ -58,8 +61,8 @@ class BuildThread(threading.Thread):
             pass
 
         if not nvr_format:
-            # get local nvr by executing "rhpkg verrel"
-            out, err, __ = execute_command(self.name, ["rhpkg verrel"])
+            # get local nvr by executing "rhpkg/fedpkg verrel"
+            out, err, __ = execute_command(self.name, ["{} verrel".format(self.distribution_tool)])
             self.log_buff.append_output(self.name, out)
             self.log_buff.append_error(self.name, err)
             if out:
@@ -109,8 +112,8 @@ class BuildThread(threading.Thread):
                     message = message.format(waitrepo_cmd)
                     self.log_buff.append_output(self.name, message)
             else:
-                message = "koji nvr '{}' do not match with rhpkg verrel '{}'"
-                message = message.format(koji_result.get("nvr", ""), verrel)
+                message = "koji nvr '{}' do not match with {} verrel '{}'"
+                message = message.format(koji_result.get("nvr", ""), self.distribution_tool, verrel)
                 logger.error(message)
 
     @checkout

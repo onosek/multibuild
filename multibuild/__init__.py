@@ -13,7 +13,7 @@ from textwrap import dedent
 from . build_thread import BuildThread
 from . color_formatter import ColorFormatter
 from . logbuffer import LogBuffer
-from . tools import execute_command
+from . tools import detect_distribution, execute_command, get_distribution_tool
 
 
 CONFIG_FILE = "/etc/multibuild/multibuild.conf"
@@ -79,13 +79,15 @@ def prepare_parser():
 def execute_thread_approach(args, config, logger, log_buff):
     branches = get_branches(args, config, logger)
     threads = []
+    distribution = detect_distribution(branches)  # TODO: duplicate functionality?
+    distribution_tool = get_distribution_tool(distribution)
     for i, branch in enumerate(branches):
         # create new thread
         if args.do_build:
-            command = ["rhpkg build"]
+            command = ["{} build".format(distribution_tool)]
             thread = BuildThread(config, log_buff, i, branch, command=command)
         elif args.do_scratch_build:
-            command = ["rhpkg scratch-build --srpm"]
+            command = ["{} scratch-build --srpm".format(distribution_tool)]
             thread = BuildThread(config, log_buff, i, branch, command=command)
         elif args.execute_custom:
             command = [args.execute_custom]
