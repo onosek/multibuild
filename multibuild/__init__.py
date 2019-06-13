@@ -16,7 +16,8 @@ from . logbuffer import LogBuffer
 from . tools import detect_distribution, execute_command, get_distribution_tool
 
 
-CONFIG_FILE = "/etc/multibuild/multibuild.conf"
+DEFAULT_CONFIG_PATH = "~/.config/multibuild"
+CONFIG_FILE_NAME = "multibuild.conf"
 
 # ===============================
 # improvements to be implemented
@@ -26,6 +27,7 @@ CONFIG_FILE = "/etc/multibuild/multibuild.conf"
 # add command "download" packages from brew (no src packages)
 # verify whether builds are tagged when printing the RCM ticket template
 # remove configparser dependency in build_thread.py
+# koji wait-repo (zjistit, jak to funguje pro rawhide)
 # ...
 
 
@@ -42,10 +44,10 @@ def get_branches(args, config, logger):
             branches = tuple(branch.strip() for branch in raw_branches.split(","))
             if branches:
                 logger.info("Using branches from a config file")
-        except (configparser.NoOptionError, configparser.NoSectionError) as e:
+        except (configparser.NoOptionError, configparser.NoSectionError):
             pass
     if not branches:
-        logger.warning("There are neither branches arguments nor branches in config")
+        logger.error("There are neither branches arguments nor branches in config")
 
     return branches
 
@@ -78,9 +80,12 @@ def prepare_parser():
 
 def execute_thread_approach(args, config, logger, log_buff):
     branches = get_branches(args, config, logger)
+    if not branches:
+        return
+
     threads = []
     distribution = detect_distribution(branches)  # TODO: duplicate functionality?
-    distribution_tool = get_distribution_tool(distribution)
+    distribution_tool, server_tool = get_distribution_tool(distribution)
     for i, branch in enumerate(branches):
         # create new thread
         if args.do_build:
@@ -153,7 +158,7 @@ def execute_simple_approach(args, config, logger, log_buff):
         ["brew call --json getTaskChildren {}".format(args.task_id)],
         ["jq '.[] | select(.method==\"buildArch\") | .id'"]
     )
-    task_id = out if out else args.task_id
+    task_id = out.strip() or args.task_id
     try:
         int(task_id)
     except ValueError:
@@ -166,7 +171,7 @@ def execute_simple_approach(args, config, logger, log_buff):
         logger.info("Logs were gathered and saved:")
     if err:
         logger.error(err)
-    print(out)
+    print("===", out, "===")
 
 
 def main():
@@ -178,12 +183,21 @@ def main():
     args = parser.parse_args()
 
     config = configparser.ConfigParser()
-    config_file = args.config_file if args.config_file else CONFIG_FILE
+    config_file = args.config_file or os.path.join(DEFAULT_CONFIG_PATH, CONFIG_FILE_NAME)
+    config_file = os.path.expanduser(config_file)
     if os.path.isfile(config_file):
         logger.debug("Will use a config file: {}".format(config_file))
         files = config.read(config_file)
         if not files:
             logger.warning("Config file '%s' is missing." % config_file)
+
+    # more specific config file in the repo directory; mostly for configuration of active branches
+    config_file2 = os.path.join(os.getcwd(), CONFIG_FILE_NAME)
+    if os.path.isfile(config_file2):
+        logger.debug("Will use a extra config file: {}".format(config_file2))
+        files = config.read(config_file2)
+        if not files:
+            logger.warning("Config file '%s' is missing." % config_file2)
 
     log_buff = LogBuffer()
 

@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='multibuild',
-    version='0.3.0',
+    version='0.4.0',
     description='speed up operations during release process',
     author='Ondřej Nosek',
     author_email='onosek@redhat.com',
@@ -27,5 +27,4 @@ setup(
     packages=find_packages(),
     scripts=['bin/multibuild'],
     include_package_data=True,
-    data_files=[('/etc/multibuild', ['conf/multibuild.conf'])],
-)
+    data_files=[('~/.config/multibuild', ['conf/multibuild.conf'])],)

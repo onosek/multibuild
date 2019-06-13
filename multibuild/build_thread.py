@@ -21,7 +21,7 @@ class BuildThread(threading.Thread):
         self.log_buff = log_buff
 
         self.distribution = detect_distribution(self.name)
-        self.distribution_tool = get_distribution_tool(self.distribution)
+        self.distribution_tool, self.server_tool = get_distribution_tool(self.distribution)
 
     def run(self):
         logger = logging.getLogger("run")
@@ -57,7 +57,7 @@ class BuildThread(threading.Thread):
         try:
             nvr_format = self.config.get("nvr", "format")
             # TODO: process data from config
-        except (configparser.NoOptionError, configparser.NoSectionError) as e:
+        except (configparser.NoOptionError, configparser.NoSectionError):
             pass
 
         if not nvr_format:
@@ -136,8 +136,8 @@ class BuildThread(threading.Thread):
             if koji_result and koji_result.get("build_id"):
                 try:
                     build_id_url_template = self.config.get("general", "build_id_url_template")
-                except (configparser.NoOptionError, configparser.NoSectionError) as e:
-                    logger.warning("config lacks 'build_id_url_template' value")
+                except (configparser.NoOptionError, configparser.NoSectionError):
+                    logger.warning("config lacks 'build_id_url_template' value. Using default")
                     build_id_url_template = BUILD_ID_URL_TEMPLATE
                 if build_id_url_template:
                     # compose build_id_url from url template and build_id
@@ -160,7 +160,8 @@ class BuildThread(threading.Thread):
 
         verrel = self.local_nvr()
         if verrel:
-            command = "brew wait-repo --build={verrel} {name}-build".format(verrel=verrel, name=self.name)
+            command = "{server_tool} wait-repo --build={verrel} {name}-build"
+            command = command.format(server_tool=self.server_tool, verrel=verrel, name=self.name)
             logger.debug("'{}'".format(command))
             logger.warning("Method is not checking whether build is already tagged")  # FIXME
             out, err, __ = execute_command(self.name, command)

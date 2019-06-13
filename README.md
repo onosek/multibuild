@@ -10,5 +10,5 @@ automatically.
 git clone https://github.com/onosek/multibuild
 cd multibuild
 python3 setup.py sdist
-pip3 install dist/multibuild-XXX.tar.gz
+pip3 install --user dist/multibuild-XXX.tar.gz
 ```
