@@ -16,7 +16,7 @@ BRANCH_PATTERNS = {
     r"^epel\d$": "Fedora",  # epel7
     r"^epel\d-playground": "Fedora",  # epel8-playground
     r"^el\d$": "Fedora",  # el6 el7
-    r"master": "Fedora",  # Fedora rawhide (rpkg, fedpkg)
+    r"^master|main|rawhide": "Fedora",  # Fedora rawhide (rpkg, fedpkg)
     r"^eng-rhel-\d$": "RHEL",  # eng-rhel-7 (rpkg, rhpkg)
     r"^eng-fedora-\d\d$": "RHEL",  # eng-fedora-30 (rhpkg)
 }
