@@ -25,6 +25,10 @@ setup(
     python_requires='>=3',
     test_suite='nose.collector',
     packages=find_packages(),
-    scripts=['bin/multibuild'],
+    entry_points={
+        'console_scripts': [
+            'multibuild = multibuild.__main__:main',
+        ]
+    },
     include_package_data=True,
     data_files=[('~/.config/multibuild', ['conf/multibuild.conf'])],)
