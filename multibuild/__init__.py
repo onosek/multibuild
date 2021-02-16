@@ -6,6 +6,7 @@ import argparse
 import configparser
 import logging
 import os
+import site
 import sys
 import time
 from textwrap import dedent
@@ -15,8 +16,8 @@ from . color_formatter import ColorFormatter
 from . logbuffer import LogBuffer
 from . tools import detect_distribution, execute_command, get_distribution_tool
 
-
-DEFAULT_CONFIG_PATH = "~/.config/multibuild"
+# TODO: find reliable way how to install config to ~/.config/ instead of ~/.local/
+DEFAULT_CONFIG_PATH = "{}/multibuild".format(site.USER_SITE)
 CONFIG_FILE_NAME = "multibuild.conf"
 
 # ===============================
@@ -27,7 +28,6 @@ CONFIG_FILE_NAME = "multibuild.conf"
 # add command "download" packages from brew (no src packages)
 # verify whether builds are tagged when printing the RCM ticket template
 # remove configparser dependency in build_thread.py
-# koji wait-repo (zjistit, jak to funguje pro rawhide)
 # ...
 
 

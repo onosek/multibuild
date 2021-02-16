@@ -19,6 +19,7 @@ setup(
         # "python3-koji",
         # "git",
         # "rhpkg",
+        # "fedpkg",
         # "brewkoji",
         # "jq",
     ],
@@ -31,4 +32,4 @@ setup(
         ]
     },
     include_package_data=True,
-    data_files=[('~/.config/multibuild', ['conf/multibuild.conf'])],)
+    data_files=[('multibuild', ['conf/multibuild.conf'])],)
