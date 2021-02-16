@@ -17,7 +17,7 @@ from . logbuffer import LogBuffer
 from . tools import detect_distribution, execute_command, get_distribution_tool
 
 # TODO: find reliable way how to install config to ~/.config/ instead of ~/.local/
-DEFAULT_CONFIG_PATH = "{}/multibuild".format(site.USER_SITE)
+DEFAULT_CONFIG_PATH = "{}/multibuild".format(site.USER_BASE)
 CONFIG_FILE_NAME = "multibuild.conf"
 
 # ===============================
@@ -28,6 +28,8 @@ CONFIG_FILE_NAME = "multibuild.conf"
 # add command "download" packages from brew (no src packages)
 # verify whether builds are tagged when printing the RCM ticket template
 # remove configparser dependency in build_thread.py
+# in setup.py add dependency on setuptools_scm to rely on version from scm
+# and include just files that are tracked.
 # ...
 
 

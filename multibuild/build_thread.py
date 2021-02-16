@@ -7,7 +7,7 @@ import threading
 from . kojiwrapper import Kojiwrapper
 from . tools import detect_distribution, execute_command, get_distribution_tool
 
-BUILD_ID_URL_TEMPLATE = "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=%d"
+BUILD_INFO_URL_TEMPLATE = "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=%d"
 
 
 class BuildThread(threading.Thread):
@@ -90,7 +90,7 @@ class BuildThread(threading.Thread):
         verrel = self.local_nvr()
         if verrel:
             # find out whether proper build in koji is prepared already
-            koji = Kojiwrapper()
+            koji = Kojiwrapper(self.server_tool)
             koji_result = None
             try:
                 koji_result = koji.get_build(verrel)
@@ -125,7 +125,7 @@ class BuildThread(threading.Thread):
         verrel = self.local_nvr()
         if verrel:
             # find out whether proper build in koji is prepared already
-            koji = Kojiwrapper()
+            koji = Kojiwrapper(self.server_tool)
             koji_result = None
             try:
                 koji_result = koji.get_build(verrel)
@@ -135,14 +135,14 @@ class BuildThread(threading.Thread):
             # find out 'build_id' in koji results
             if koji_result and koji_result.get("build_id"):
                 try:
-                    build_id_url_template = self.config.get("general", "build_id_url_template")
+                    build_info_url_template = self.config.get(self.server_tool, "build_info_url_template")
                 except (configparser.NoOptionError, configparser.NoSectionError):
-                    logger.warning("config lacks 'build_id_url_template' value. Using default")
-                    build_id_url_template = BUILD_ID_URL_TEMPLATE
-                if build_id_url_template:
-                    # compose build_id_url from url template and build_id
-                    build_id_url = build_id_url_template % koji_result.get("build_id")
-                    stream = "[{verrel}|{url}]".format(verrel=verrel, url=build_id_url)
+                    logger.warning("config lacks 'build_info_url_template' value. Using default")
+                    build_info_url_template = BUILD_INFO_URL_TEMPLATE
+                if build_info_url_template:
+                    # compose build_info_url from url template and build_id
+                    build_info_url = build_info_url_template % koji_result.get("build_id")
+                    stream = "[{verrel}|{url}]".format(verrel=verrel, url=build_info_url)
                     # common output for all threads
                     self.log_buff.append_output("_summary", stream)
                     self.log_buff.append_output("_builds", verrel)
