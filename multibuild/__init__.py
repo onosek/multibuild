@@ -14,7 +14,8 @@ from textwrap import dedent
 from . build_thread import BuildThread
 from . color_formatter import ColorFormatter
 from . logbuffer import LogBuffer
-from . tools import detect_distribution, execute_command, get_distribution_tool
+from .tools import (detect_distribution, execute_command,
+                    get_distribution_tool, get_tower_credentials)
 
 # TODO: find reliable way how to install config to ~/.config/ instead of ~/.local/
 DEFAULT_CONFIG_PATH = "{}/multibuild".format(site.USER_BASE)
@@ -27,6 +28,7 @@ CONFIG_FILE_NAME = "multibuild.conf"
 # read custom verrel format for specific projects
 # add command "download" packages from brew (no src packages)
 # verify whether builds are tagged when printing the RCM ticket template
+# verify whether builds are tagged before regen RCM repo
 # remove configparser dependency in build_thread.py
 # in setup.py add dependency on setuptools_scm to rely on version from scm
 # and include just files that are tracked.
@@ -77,6 +79,8 @@ def prepare_parser():
                                help='gather build logs and store them locally', type=int)
     command_group.add_argument('-w', '--wait-repo', dest='wait_repo', action='store_true',
                                help='will wait for repo regeneration')
+    command_group.add_argument('-r', '--regen-rcm-repo', dest='regen_rcm_repo', action='store_true',
+                               help='executes rcm repo regeneration')
     return parser
 
 
@@ -84,6 +88,15 @@ def execute_thread_approach(args, config, logger, log_buff):
     branches = get_branches(args, config, logger)
     if not branches:
         return
+
+    # update config with tower creadentials.
+    if args.regen_rcm_repo:
+        tower_url, tower_username, tower_password = get_tower_credentials(config)
+        if not (tower_url and tower_username and tower_password):
+            return
+        config.set("tower", "url", tower_url)
+        config.set("tower", "username", tower_username)
+        config.set("tower", "password", tower_password)
 
     threads = []
     distribution = detect_distribution(branches)  # TODO: duplicate functionality?
@@ -105,6 +118,8 @@ def execute_thread_approach(args, config, logger, log_buff):
             thread = BuildThread(config, log_buff, i, branch, mode="summary")
         elif args.wait_repo:
             thread = BuildThread(config, log_buff, i, branch, mode="wait-repo")
+        elif args.regen_rcm_repo:
+            thread = BuildThread(config, log_buff, i, branch, mode="regen-rcm-repo")
 
         threads.append(thread)
 
@@ -135,10 +150,11 @@ def execute_thread_approach(args, config, logger, log_buff):
             print("JIRA template:")
             jira_template = (dedent("""
                              Project: RCM
-                             Component: RCM Tools.
+                             Component: RCM Tools
+                             Issue Type: Task
                              Title: Rerun compose with new RHEL and Fedora packages
                              The ticket description:
-                             Please include these packages in the compose:
+                             Please include these packages into the compose:
 
                              {builds}
 

@@ -4,8 +4,9 @@ import configparser
 import logging
 import threading
 
-from . kojiwrapper import Kojiwrapper
-from . tools import detect_distribution, execute_command, get_distribution_tool
+from .kojiwrapper import Kojiwrapper
+from .tools import (detect_distribution, execute_command,
+                    get_distribution_tool, run_tower_job)
 
 BUILD_INFO_URL_TEMPLATE = "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=%d"
 
@@ -32,6 +33,8 @@ class BuildThread(threading.Thread):
             self.run_summary()
         elif self.mode == "wait-repo":
             self.wait_repo()
+        elif self.mode == "regen-rcm-repo":
+            self.regen_rcm_repo()
         else:
             self.run_standard()
         logger.info("Exiting thread '{}'".format(self.name))
@@ -135,7 +138,8 @@ class BuildThread(threading.Thread):
             # find out 'build_id' in koji results
             if koji_result and koji_result.get("build_id"):
                 try:
-                    build_info_url_template = self.config.get(self.server_tool, "build_info_url_template")
+                    build_info_url_template = self.config.get(self.server_tool,
+                                                              "build_info_url_template")
                 except (configparser.NoOptionError, configparser.NoSectionError):
                     logger.warning("config lacks 'build_info_url_template' value. Using default")
                     build_info_url_template = BUILD_INFO_URL_TEMPLATE
@@ -167,3 +171,29 @@ class BuildThread(threading.Thread):
             out, err, __ = execute_command(self.name, command)
             self.log_buff.append_output(self.name, out)
             self.log_buff.append_error(self.name, err)
+
+    @checkout
+    def regen_rcm_repo(self):
+        """
+        more about Ansible authentiacation:
+        https://www.ansible.com/blog/summary-of-authentication-methods-in-red-hat-ansible-tower
+        """
+        logger = logging.getLogger("regen-rcm-repo")
+
+        # read credentials from config.
+        # Parent method updated this config if the information wasn't there yet.
+        baseurl = self.config.get("tower", "url")
+        username = self.config.get("tower", "username")
+        password = self.config.get("tower", "password")
+
+        verrel = self.local_nvr()
+        logger.debug("'{}'".format(verrel))
+        job_id = run_tower_job(baseurl, username, password, self.name, verrel)
+        if job_id:
+            self.log_buff.append_output(self.name,
+                                        "job url: {}/#/jobs/playbook/{}".format(baseurl, job_id))
+
+        out = ""
+        err = ""
+        self.log_buff.append_output(self.name, out)
+        self.log_buff.append_error(self.name, err)
