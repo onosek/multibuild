@@ -6,7 +6,7 @@ import threading
 
 from .kojiwrapper import Kojiwrapper
 from .tools import (detect_distribution, execute_command,
-                    get_distribution_tool, run_tower_job)
+                    get_distribution_tool, run_ansible_job)
 
 BUILD_INFO_URL_TEMPLATE = "https://brewweb.engineering.redhat.com/brew/buildinfo?buildID=%d"
 
@@ -182,13 +182,14 @@ class BuildThread(threading.Thread):
 
         # read credentials from config.
         # Parent method updated this config if the information wasn't there yet.
-        baseurl = self.config.get("tower", "url")
-        username = self.config.get("tower", "username")
-        password = self.config.get("tower", "password")
+        baseurl = self.config.get("ansible", "url")
+        username = self.config.get("ansible", "username")
+        password = self.config.get("ansible", "password")
+        token = self.config.get("ansible", "token")
 
         verrel = self.local_nvr()
         logger.debug("'{}'".format(verrel))
-        job_id = run_tower_job(baseurl, username, password, self.name, verrel)
+        job_id = run_ansible_job(baseurl, username, password, token, self.name, verrel)
         if job_id:
             self.log_buff.append_output(self.name,
                                         "job url: {}/#/jobs/playbook/{}".format(baseurl, job_id))

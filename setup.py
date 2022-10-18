@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='multibuild',
-    version='0.5.0',
+    version='0.6.0',
     description='speed up operations during release process',
     author='Ondřej Nosek',
     author_email='onosek@redhat.com',

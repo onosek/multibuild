@@ -25,12 +25,12 @@ BRANCH_PATTERNS = {
     r"^eng-fedora-\d\d$": "RHEL",  # eng-fedora-30 (rhpkg)
 }
 
-TOWER_PLATFORM_MAPPING = {
+ANSIBLE_PLATFORM_MAPPING = {
     r"eng-rhel-(\d+)": r"rhel-\1",
     r"eng-fedora-(\d\d)": r"fedora-\1",
 }
 
-TOWER_TEMPLATE_ID = 'rcm-tools-compose-ss'
+ANSIBLE_TEMPLATE_ID = 'rcm-tools-compose-ss++Compose'
 
 
 def execute_command(name, command="", pipe=None):
@@ -110,7 +110,8 @@ def _recognize_distribution(branch_name):
             return arch
 
     logger = logging.getLogger("recognize_distribution")
-    logger.warning("Distribution wasn't recognized from branch '{}'. Using default: 'RHEL'".format(branch_name))
+    logger.warning("Distribution wasn't recognized from branch '{}'. "
+                   "Using default: 'RHEL'".format(branch_name))
     return "RHEL"
 
 
@@ -121,58 +122,69 @@ def get_distribution_tool(distribution):
     return dist_tool
 
 
-def get_tower_credentials(config):
-    logger = logging.getLogger("get_tower_credentials")
+def get_ansible_credentials(config):
+    logger = logging.getLogger("get_ansible_credentials")
     url = None
     try:
-        url = config.get("tower", "url")
-        logger.info("Using 'tower url' from config: '%s'" % url)
+        url = config.get("ansible", "url")
+        logger.info("Using 'ansible url' from config: '%s'" % url)
     except (configparser.NoOptionError, configparser.NoSectionError):
-        url = input(prompt="Tower url (tower host): ")
+        url = input(prompt="Ansible url (ansible host): ")
         if not url:
-            logger.error("Tower url wasn't entered.")
+            logger.error("Ansible url wasn't entered.")
 
     username = None
     try:
-        username = config.get("tower", "username")
-        logger.info("Using 'tower username' from config: '%s'" % username)
+        username = config.get("ansible", "username")
+        logger.info("Using 'ansible username' from config: '%s'" % username)
     except (configparser.NoOptionError, configparser.NoSectionError):
-        username = input(prompt="Tower username: ")
+        username = input(prompt="Ansible username: ")
         if not username:
-            logger.error("Tower username wasn't entered.")
+            logger.error("Ansible username wasn't entered.")
 
-    password = None
+    token = None
     try:
-        password = getpass.getpass()
-    except Exception as e:
-        logger.error("Tower password error: %s" % e)
-    if not username:
-        logger.error("Tower password wasn't entered.")
+        token = config.get("ansible", "token")
+        # don't show token openly
+        logger.info("Using 'ansible token' from config: '%s'" % ("*" * len(token)))
+    except (configparser.NoOptionError, configparser.NoSectionError):
+        token = input(prompt="Ansible token: ")
+        if not token:
+            logger.error("Ansible token wasn't entered.")
 
-    return url, username, password
+    password = ""
+    if not token:
+        try:
+            password = getpass.getpass()
+        except Exception as e:
+            logger.error("Ansible password error: %s" % e)
+        if not password:
+            logger.error("Ansible password wasn't entered.")
+
+    return url, username, password, token
 
 
-def get_tower_platform(branch_name):
-    for branch_pattern, platform_pattern in TOWER_PLATFORM_MAPPING.items():
+def get_ansible_platform(branch_name):
+    for branch_pattern, platform_pattern in ANSIBLE_PLATFORM_MAPPING.items():
         res = re.match(branch_pattern, branch_name)
         if res:
             return re.sub(branch_pattern, platform_pattern, branch_name)
     return None
 
 
-def run_tower_job(baseurl, username, password, branch_name, verrel):
+def run_ansible_job(baseurl, username, password, token, branch_name, verrel):
     """
     Execute regen repo job for given branch and nvr (verrel).
     Method returns job ID or None.
     """
-    logger = logging.getLogger("run_tower_job")
+    logger = logging.getLogger("run_ansible_job")
 
-    platform = get_tower_platform(branch_name)
+    platform = get_ansible_platform(branch_name)
     if not platform:
-        logger.error("Unknown tower plafrom: {}".format(platform))
+        logger.error("Unknown ansible plafrom: {}".format(platform))
         return
 
-    url = urllib.parse.urljoin(baseurl, "/api/v2/job_templates/%s/launch/" % TOWER_TEMPLATE_ID)
+    url = urllib.parse.urljoin(baseurl, "/api/v2/job_templates/%s/launch/" % ANSIBLE_TEMPLATE_ID)
     json_request = {
         "extra_vars": {
             "platform": platform,
@@ -180,18 +192,19 @@ def run_tower_job(baseurl, username, password, branch_name, verrel):
             # "email_other": "",
         },
     }
+    headers = {"Authorization": "Bearer {}".format(token)}
 
     try:
         response = requests.post(
             url,
-            auth=(username, password),
+            headers=headers,
             # verify=False,
             json=json_request)
     except Exception as e:
-        logger.error("Error during processing tower query: {}".format(e))
+        logger.error("Error during processing ansible query: {}".format(e))
         raise
     if not response.ok:
-        logger.error("Tower response: {}".format(response))
+        logger.error("Ansible response: {}".format(response))
         logger.debug("Response: {}".format(response.text))
         return
 
@@ -208,20 +221,21 @@ def run_tower_job(baseurl, username, password, branch_name, verrel):
 
 
 # NOTE: not really used yet
-def get_tower_job_status(baseurl, username, password, job_id):
+def get_ansible_job_status(baseurl, username, password, token, job_id):
     """
-    Get status of the job in tower with given ID.
+    Get status of the job in ansible with given ID.
     Method returns job's status or None
     """
-    logger = logging.getLogger("get_tower_job_status")
+    logger = logging.getLogger("get_ansible_job_status")
     url = urllib.parse.urljoin(baseurl, "/api/v2/jobs/%d/" % job_id)
+    headers = {"Authorization": "Bearer {}".format(token)}
     try:
-        response = requests.get(url, auth=(username, password))
+        response = requests.get(url, headers=headers)
     except Exception as e:
-        logger.error("Error during processing tower query: {}".format(e))
+        logger.error("Error during processing ansible query: {}".format(e))
         raise
     if not response.ok:
-        logger.error("Tower response: {}".format(response))
+        logger.error("Ansible response: {}".format(response))
         logger.debug("Response: {}".format(response.text))
         return
 

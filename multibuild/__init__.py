@@ -15,7 +15,7 @@ from . build_thread import BuildThread
 from . color_formatter import ColorFormatter
 from . logbuffer import LogBuffer
 from .tools import (detect_distribution, execute_command,
-                    get_distribution_tool, get_tower_credentials)
+                    get_distribution_tool, get_ansible_credentials)
 
 # TODO: find reliable way how to install config to ~/.config/ instead of ~/.local/
 DEFAULT_CONFIG_PATH = "{}/multibuild".format(site.USER_BASE)
@@ -89,14 +89,15 @@ def execute_thread_approach(args, config, logger, log_buff):
     if not branches:
         return
 
-    # update config with tower creadentials.
+    # update config with ansible creadentials.
     if args.regen_rcm_repo:
-        tower_url, tower_username, tower_password = get_tower_credentials(config)
-        if not (tower_url and tower_username and tower_password):
+        ansible_url, ansible_username, ansible_password, ansible_token = get_ansible_credentials(config)
+        if not (ansible_url and ansible_username and (ansible_password or ansible_token)):
             return
-        config.set("tower", "url", tower_url)
-        config.set("tower", "username", tower_username)
-        config.set("tower", "password", tower_password)
+        config.set("ansible", "url", ansible_url)
+        config.set("ansible", "username", ansible_username)
+        config.set("ansible", "password", ansible_password)
+        config.set("ansible", "token", ansible_token)
 
     threads = []
     distribution = detect_distribution(branches)  # TODO: duplicate functionality?
