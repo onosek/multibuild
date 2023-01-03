@@ -57,7 +57,8 @@ def get_branches(args, config, logger):
 
 
 def prepare_parser():
-    parser = argparse.ArgumentParser(description='Apply specific action for each dist-git branch in list')
+    parser = argparse.ArgumentParser(description='Apply specific action for each dist-git '
+                                                 'branch in list')
     parser.add_argument('branches', metavar='BRANCH', type=str, nargs='*',
                         help='list of dist-git branches')
     parser.add_argument('-c', '--config', dest='config_file', metavar="CONFIG_FILE", action='store',
@@ -69,13 +70,16 @@ def prepare_parser():
                                help='prints the JIRA template')
     command_group.add_argument('-b', '--build', dest='do_build', action='store_true',
                                help='builds from branches')
-    command_group.add_argument('-s', '--scratch-build', dest='do_scratch_build', action='store_true',
+    command_group.add_argument('-s', '--scratch-build', dest='do_scratch_build',
+                               action='store_true',
                                help='does scratch builds')
     command_group.add_argument('-t', '--tag', dest='do_tag', action='store_true',
                                help='tags builds')
-    command_group.add_argument('-e', '--execute', dest='execute_custom', metavar="COMMAND", action='store',
+    command_group.add_argument('-e', '--execute', dest='execute_custom', metavar="COMMAND",
+                               action='store',
                                help='executes custom command')
-    command_group.add_argument('-l', '--gather-logs', dest='task_id', metavar="TASK_ID", action='store',
+    command_group.add_argument('-l', '--gather-logs', dest='task_id', metavar="TASK_ID",
+                               action='store',
                                help='gather build logs and store them locally', type=int)
     command_group.add_argument('-w', '--wait-repo', dest='wait_repo', action='store_true',
                                help='will wait for repo regeneration')
@@ -91,7 +95,8 @@ def execute_thread_approach(args, config, logger, log_buff):
 
     # update config with ansible creadentials.
     if args.regen_rcm_repo:
-        ansible_url, ansible_username, ansible_password, ansible_token = get_ansible_credentials(config)
+        (ansible_url, ansible_username, ansible_password,
+         ansible_token) = get_ansible_credentials(config)
         if not (ansible_url and ansible_username and (ansible_password or ansible_token)):
             return
         config.set("ansible", "url", ansible_url)
@@ -127,7 +132,8 @@ def execute_thread_approach(args, config, logger, log_buff):
         # start new thread
         thread.start()
         # delay for safe checkout
-        # TODO: it is also workaround for `verrel`. It needs some time to get correct result after switching branch
+        # TODO: it is also workaround for `verrel`. It needs some time to get correct result
+        # after switching branch
         time.sleep(3)
 
     # wait for all threads to complete
