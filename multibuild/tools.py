@@ -178,6 +178,7 @@ def run_ansible_job(baseurl, username, password, token, branch_name, verrel):
     Method returns job ID or None.
     """
     logger = logging.getLogger("run_ansible_job")
+    logger.setLevel(logging.DEBUG)
 
     platform = get_ansible_platform(branch_name)
     if not platform:

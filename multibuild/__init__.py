@@ -63,6 +63,8 @@ def prepare_parser():
                         help='list of dist-git branches')
     parser.add_argument('-c', '--config', dest='config_file', metavar="CONFIG_FILE", action='store',
                         help='specifies config file (INI format)')
+    parser.add_argument('-v', '--verbose', dest='verbose', action='store_true',
+                        help='show debug information')
     command_group = parser.add_mutually_exclusive_group(required=True)
     command_group.add_argument('-p', '--print-summary', dest='do_summary', action='store_true',
                                help='prints the summary')
@@ -206,6 +208,9 @@ def main():
     parser = prepare_parser()
     # TODO: argcomplete.autocomplete(parser)
     args = parser.parse_args()
+
+    if args.verbose:
+        logger.setLevel(logging.DEBUG)
 
     config = configparser.ConfigParser()
     config_file = args.config_file or os.path.join(DEFAULT_CONFIG_PATH, CONFIG_FILE_NAME)
