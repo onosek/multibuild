@@ -18,10 +18,11 @@ DISTRIBUTION_TOOLS = {
 BRANCH_PATTERNS = {
     r"^f\d\d$": "Fedora",  # f28 f29
     r"^epel\d$": "Fedora",  # epel7
+    r"^epel\d\d(?:\.(\d+))?": "Fedora",  # epel10
     r"^epel\d-playground$": "Fedora",  # epel8-playground
     r"^el\d$": "Fedora",  # el6
     r"^master|main|rawhide": "Fedora",  # Fedora rawhide (rpkg, fedpkg)
-    r"^eng-rhel-\d$": "RHEL",  # eng-rhel-7 (rpkg, rhpkg)
+    r"^eng-rhel-\d+$": "RHEL",  # eng-rhel-7 (rpkg, rhpkg)
     r"^eng-fedora-\d\d$": "RHEL",  # eng-fedora-30 (rhpkg)
 }
 
