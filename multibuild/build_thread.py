@@ -102,6 +102,12 @@ class BuildThread(threading.Thread):
 
             # local build matches koji build
             if koji_result and koji_result.get("nvr", "") == verrel:
+                # request a new build repo
+                command = "brew request-repo {}-build --wait --current".format(self.name)
+                logger.debug("'{}'".format(self.command))
+                out, err, ret = execute_command(self.name, [command])
+                self.log_buff.append_output(self.name, out)
+                self.log_buff.append_error(self.name, err)
                 # tag the build
                 command = "brew tag-build {} {}".format(self.name, verrel)
                 logger.debug("'{}'".format(self.command))
