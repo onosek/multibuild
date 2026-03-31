@@ -6,9 +6,10 @@ import argparse
 import configparser
 import logging
 import os
-import site
+import shutil
 import sys
 import time
+from platformdirs import user_config_path
 
 from . build_thread import BuildThread
 from . color_formatter import ColorFormatter
@@ -16,8 +17,8 @@ from . logbuffer import LogBuffer
 from .tools import (detect_distribution, execute_command,
                     get_distribution_tool, get_ansible_credentials)
 
-# TODO: find reliable way how to install config to ~/.config/ instead of ~/.local/
-DEFAULT_CONFIG_PATH = "{}/multibuild".format(site.USER_BASE)
+# Follow XDG Base Directory specification (cross-platform via platformdirs)
+DEFAULT_CONFIG_PATH = str(user_config_path('multibuild'))
 CONFIG_FILE_NAME = "multibuild.conf"
 
 # ===============================
@@ -26,11 +27,8 @@ CONFIG_FILE_NAME = "multibuild.conf"
 # in log messages include thread name
 # read custom verrel format for specific projects
 # add command "download" packages from brew (no src packages)
-# verify whether builds are tagged when printing the RCM ticket template
 # verify whether builds are tagged before regen RCM repo
 # remove configparser dependency in build_thread.py
-# in setup.py add dependency on setuptools_scm to rely on version from scm
-# and include just files that are tracked.
 # ...
 
 
@@ -154,6 +152,18 @@ def execute_thread_approach(args, config, logger, log_buff):
         print(summary)
 
 
+def ensure_config_exists(config_file, logger):
+    """Create config from template if it doesn't exist."""
+    if not os.path.isfile(config_file):
+        os.makedirs(os.path.dirname(config_file), exist_ok=True)
+        template = os.path.join(os.path.dirname(__file__), CONFIG_FILE_NAME)
+        if os.path.isfile(template):
+            shutil.copy(template, config_file)
+            logger.info("Created config: {}".format(config_file))
+            return True
+    return False
+
+
 def execute_simple_approach(args, config, logger, log_buff):
     # so far there is only one functionality - gathering logs
     out, __, __ = execute_command(
@@ -185,12 +195,16 @@ def main():
     argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
+    # Determine config file path and ensure it exists
+    config_file = args.config_file or os.path.join(DEFAULT_CONFIG_PATH, CONFIG_FILE_NAME)
+    config_file = os.path.expanduser(config_file)
+    ensure_config_exists(config_file, logger)
+
     if args.verbose:
         logger.setLevel(logging.DEBUG)
 
     config = configparser.ConfigParser()
-    config_file = args.config_file or os.path.join(DEFAULT_CONFIG_PATH, CONFIG_FILE_NAME)
-    config_file = os.path.expanduser(config_file)
+
     if os.path.isfile(config_file):
         logger.debug("Will use a config file: {}".format(config_file))
         files = config.read(config_file)

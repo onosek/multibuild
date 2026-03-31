@@ -29,28 +29,47 @@ Packages will be created in the `dist/` directory.
 
 ## Configuration
 
-Configuration is hierarchical (INI format). The Main user's config
-file:
-```
-    ~/.local/multibuild/multibuild.conf
-```
-For setting the Ansible credentials use the main config file
-preferably. 'Username' and 'token' values from there will work
-across the user's account.
+Configuration uses hierarchical INI format. On first run, multibuild automatically
+creates a default config file at the platform-appropriate location:
 
-Use the project's config file
-```
-    /<project_path>/multibuild.conf
-```
-to set 'active_branches' value, because it is specific to the project.
+- **Linux**: `~/.config/multibuild/multibuild.conf`
+- **macOS**: `~/Library/Application Support/multibuild/multibuild.conf`
+- **Windows**: `%LOCALAPPDATA%\multibuild\multibuild.conf`
 
-If there is no project's config file (or some variables are not
-specified), all missing values are taken from the main config file.
-```
+The location respects XDG Base Directory specification on Linux (via `$XDG_CONFIG_HOME`).
+
+### Configuration hierarchy
+
+1. **User config** (`~/.config/multibuild/multibuild.conf`)
+   For global settings like Ansible credentials. These values work across all projects.
+
+2. **Repository config** (`/<repository_path>/multibuild.conf`)
+   For repository-specific settings like `active_branches`.
+
+If a variable is not specified in the project config, it falls back to the user config.
+
+**Note**: Empty values in config files are treated as set:
+```ini
 [section]
 var1=
 var2=bbb
 ```
-Warning: both 'var1' and 'var2' are considered as specified although
-'var1' is an empty string. If you need 'var1' to be taken from
-the main config, comment it with '#' or remove the line.
+Both `var1` and `var2` are considered specified, even though `var1` is empty.
+To use the fallback value from user config, comment out or remove the line.
+
+## Shell Completion
+
+To enable tab completion for bash:
+
+```bash
+# For current session
+eval "$(register-python-argcomplete multibuild)"
+
+# Permanently (add to ~/.bashrc)
+echo 'eval "$(register-python-argcomplete multibuild)"' >> ~/.bashrc
+```
+
+Or enable globally for all Python scripts:
+```bash
+activate-global-python-argcomplete
+```
