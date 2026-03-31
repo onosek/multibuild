@@ -9,7 +9,6 @@ import os
 import site
 import sys
 import time
-from textwrap import dedent
 
 from . build_thread import BuildThread
 from . color_formatter import ColorFormatter
@@ -68,8 +67,6 @@ def prepare_parser():
     command_group = parser.add_mutually_exclusive_group(required=True)
     command_group.add_argument('-p', '--print-summary', dest='do_summary', action='store_true',
                                help='prints the summary')
-    command_group.add_argument('-j', '--print-jira', dest='do_jira', action='store_true',
-                               help='prints the JIRA template')
     command_group.add_argument('-b', '--build', dest='do_build', action='store_true',
                                help='builds from branches')
     command_group.add_argument('-s', '--scratch-build', dest='do_scratch_build',
@@ -122,7 +119,7 @@ def execute_thread_approach(args, config, logger, log_buff):
             thread = BuildThread(config, log_buff, i, branch, command=command)
         elif args.do_tag:
             thread = BuildThread(config, log_buff, i, branch, mode="tag")
-        elif args.do_summary or args.do_jira:
+        elif args.do_summary:
             thread = BuildThread(config, log_buff, i, branch, mode="summary")
         elif args.wait_repo:
             thread = BuildThread(config, log_buff, i, branch, mode="wait-repo")
@@ -153,29 +150,8 @@ def execute_thread_approach(args, config, logger, log_buff):
         print(ColorFormatter.RESET, end='', flush=True)
     if log_buff.get_output("_summary"):
         summary = '\n'.join(log_buff.get_output("_summary"))
-        if args.do_jira:
-            builds = '\n'.join(["* {}".format(build) for build in log_buff.get_output("_builds")])
-            tags = ', '.join(log_buff.get_output("_tags"))
-            print("JIRA template:")
-            jira_template = (dedent("""
-                             Project: RCM
-                             Component: RCM Tools
-                             Issue Type: Task
-                             Title: Rerun compose with new RHEL and Fedora packages
-                             The ticket description:
-                             Please include these packages into the compose:
-
-                             {builds}
-
-                             Links:
-                             {summary}
-
-                             The packages are already tagged in respective *{tags}* tags.
-            """))
-            print(jira_template.format(builds=builds, summary=summary, tags=tags))
-        else:
-            print("Available builds summary:")
-            print(summary)
+        print("Available builds summary:")
+        print(summary)
 
 
 def execute_simple_approach(args, config, logger, log_buff):

@@ -149,8 +149,8 @@ class BuildThread(threading.Thread):
                     stream = "[{verrel}|{url}]".format(verrel=verrel, url=build_info_url)
                     # common output for all threads
                     self.log_buff.append_output("_summary", stream)
-                    self.log_buff.append_output("_builds", verrel)
-                    self.log_buff.append_output("_tags", self.name)
+                    # self.log_buff.append_output("_builds", verrel)
+                    # self.log_buff.append_output("_tags", self.name)
             else:
                 logger.error("build_id wasn't found for '{}'".format(verrel))
 
