@@ -102,19 +102,19 @@ class BuildThread(threading.Thread):
 
             # local build matches koji build
             if koji_result and koji_result.get("nvr", "") == verrel:
-                # request a new build repo
-                command = "brew request-repo {}-build --wait --current".format(self.name)
-                logger.debug("'{}'".format(self.command))
-                out, err, ret = execute_command(self.name, [command])
-                self.log_buff.append_output(self.name, out)
-                self.log_buff.append_error(self.name, err)
                 # tag the build
                 command = "brew tag-build {} {}".format(self.name, verrel)
                 logger.debug("'{}'".format(self.command))
                 out, err, ret = execute_command(self.name, [command])
                 self.log_buff.append_output(self.name, out)
                 self.log_buff.append_error(self.name, err)
-                if not ret:
+                # request a new build repo
+                command = "brew request-repo {}-build --wait --current".format(self.name)
+                logger.debug("'{}'".format(self.command))
+                out, err, ret2 = execute_command(self.name, [command])
+                self.log_buff.append_output(self.name, out)
+                self.log_buff.append_error(self.name, err)
+                if not ret and not ret2:
                     waitrepo_cmd = "brew wait-repo {branch}-build --build={nvr}"
                     waitrepo_cmd = waitrepo_cmd.format(branch=self.name, nvr=verrel)
                     message = "\nYou can wait for repo regeneration by executing command:\n  {}"
