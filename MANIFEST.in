@@ -1,1 +1,2 @@
+include conf/multibuild.conf
 global-exclude *.py[cod] __pycache__

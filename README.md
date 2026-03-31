@@ -6,12 +6,26 @@ automatically.
 
 ## Installation
 
-```
+```bash
 git clone https://github.com/onosek/multibuild
 cd multibuild
-python3 setup.py sdist
-pip3 install --user dist/multibuild-XXX.tar.gz
+pip3 install --user .
 ```
+
+Or for development (editable install):
+```bash
+pip3 install --user -e .
+```
+
+## Building
+
+To build source and wheel packages:
+```bash
+pip3 install --user build
+python3 -m build
+```
+
+Packages will be created in the `dist/` directory.
 
 ## Configuration
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# TODO: import argcomplete
+import argcomplete
 import argparse
 import configparser
 import logging
@@ -206,7 +206,7 @@ def main():
     logger = logging.getLogger("main")
 
     parser = prepare_parser()
-    # TODO: argcomplete.autocomplete(parser)
+    argcomplete.autocomplete(parser)
     args = parser.parse_args()
 
     if args.verbose:

@@ -103,7 +103,7 @@ def _recognize_distribution(branch_name):
     """
     if not branch_name:
         raise Exception("Empty branch name")
-    if type(branch_name) != str:
+    if type(branch_name) is not str:
         raise Exception("Branch name is not string")
 
     for pattern, arch in BRANCH_PATTERNS.items():
