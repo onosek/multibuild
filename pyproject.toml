@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multibuild"
+version = "0.6.3"
+description = "speed up operations during release process"
+readme = "README.md"
+requires-python = ">=3.6"
+license = "GPL-3.0-or-later"
+authors = [
+    {name = "Ondřej Nosek", email = "onosek@redhat.com"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+]
+dependencies = [
+    "argcomplete",
+    # "python3-koji",
+    # "git",
+    # "rhpkg",
+    # "fedpkg",
+    # "brewkoji",
+    # "jq",
+]
+
+[project.urls]
+Homepage = "https://github.com/onosek/multibuild"
+
+[project.scripts]
+multibuild = "multibuild.__main__:main"
+
+[tool.setuptools]
+packages = ["multibuild"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+multibuild = ["../conf/multibuild.conf"]
